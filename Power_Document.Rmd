@@ -1,0 +1,920 @@
+---
+title: "Power"
+author: "Katherine Tansey and William Watkins"
+date: "27 July 2016"
+output: html_document
+---
+
+#Introduction
+Power is an incredible important concept as it indicates whether a study will bear any meaningful results. It is also a **requirement** for all grant applications. Power should be a consideration in the design of a study, and a study only undertaken if it has adequate power. Power gives an indication of study feasibility and efficiency (see Figure 1), and is only relevant **before** a study is done. *Post-hoc power analysis are never recommended.*  
+
+“Although inadequate statistical power clearly casts doubt on negative association findings, what is less obvious is that **it also reduces the validity of results that are declared to reach significance**. [(Sham and Purcell. 2014)](http://www.nature.com/nrg/journal/v15/n5/full/nrg3706.html)”  
+
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/PowerCurve.png)  
+*Figure 1: The relationship between sample size and power indicating effect on study feasibility and efficiency. Taken from [Source](http://iacuc.research.illinois.edu/content/AnimalUse/NumberOfAnimals.aspx)*  
+
+#Hypothesis Testing
+Statistical inference is the process of making decisions about the effect of a factor (i.e. drug, intervention, genotype, etc.) to measurable characteristics affected by random variation. For example, does a specific academic intervention results in higher test scores for students? Or does a certain drug reduce the size of a tumor? We do this through statistical testing of hypothesis. The *null hypothesis* assumes that there is no effect of the factor on the characteristic of interest, for example, the drug does nothing to alter the size of the tumor. The *alternative hypothesis* is that there is an effect of the factor, for example, the drug does substantially reduce the size of the tumor. We accept or reject the null hypothesis by using a statistical test. The alternative hypothesis is only accepted when the null hypothesis is rejected based on our statistical test.   
+
+Table 1 shows the different possibilities that can result in hypothesis testing. The columns represent the truth (Reality) of the effect of the factor, and *this is something that we do not know*. The rows represent the decision we make (Decided) based on the results of our statistical test. In two scenarios, we get the answer correct (the bottom left and top right). In the bottom left, we correctly accept the null hypothesis from the results of our statistical test and in reality the null hypothesis is true. In the top right, we correctly reject the null hypothesis when the null hypothesis is false.    
+
+*Table 1: The possible outcomes of hypothesis testing.*    
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/hypothesis_table.png)    
+
+The top left and bottom right of Table 1 are incorrect. In the top left, based on the results from the statistical test the null hypothesis was rejected when in reality the null hypothesis is true. This is referred to as a *false positive* or *type I error*. A type I error is the probability of rejecting the null hypothesis when the null hypothesis is true. The probability of a type I error is usually denoted by the Greek letter alpha (α). Type I errors are controlled for by setting a critical value, or an α-level, which sets a threshold by which the null hypothesis is only rejected when the results of the statistical test exceed this threshold. For single tests, this value is usually set to 0.05, or 5%, which means that a 5% false positive rate is acceptable.    
+
+The bottom right of Table 1, the null hypothesis was accepted when in reality the null hypothesis is false. This is referred to as a *false negative* or *type II error*. A type II error is the probability of accepting the null hypothesis when alternative hypothesis is true. The probability of a type II error is usually denoted by the Greek letter beta (β). Power is calculated as 1- β.  
+ 
+Therefore, power is the probability of correctly rejecting the null hypothesis when a true association is present (making the correct decision). Another definition of power is the probability of detecting a given size of effect in a population from a sample size N, for a given α-level (significance criterion). This second definition alludes to the fact that power is a function of effect size and sample size, as well as other factors.  
+
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/hypothesis_plot_normal.png)   
+*Figure 2: Representative plot for alpha, beta, and power in hypothesis testing. The critical value, or the alpha-level, is the threshold that is set to control type I errors. [Source](http://cshprotocols.cshlp.org/content/2012/6/pdb.top069559.long)*  
+
+The two normal distributions represent the two potential hypotheses (Figure 2). The one on the left is a representative distribution for the null hypothesis, and the one on the right is a representative distribution for the alternative hypothesis. The statistical test aims to determine if the representative distribution for the alternative hypothesis is different from the representative distribution for the null hypothesis. α is the area underneath the null hypothesis distribution to the right of the set critical value, or α-level. The α-level is the value set to control the rate of type I errors. For single tests, this value is usually set to 0.05, or 5%, which means that a 5% false positive rate is acceptable. β is the area under the alternative hypothesis distribution to the left of the critical value, or α-level. Power is the area under the alternative hypothesis distribution to the right of the critical value (1- β).    
+
+The shape and overlap of the two distribution can be altered a number of different factors including sample size (N), effect size and amount of variation. The effect of these are shown in Figures 3 to 5.    
+
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/hypothesis_plot_alpha.png)   
+*Figure 3: Altering the α-level change power. Lowering the α-level from 0.05 to 0.01 reduces power (reducing the size of the shaded blue area). The stronger the requirement to reject the null hypothesis, by lowering the α-level, decreases power.*    
+
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/hypothesis_plot_sigma.png)     
+*Figure 4: Altering the amount of within group variation, or the distribution of the test statistic, will effect power. The more within group variation, or the wider the spread in the distribution, the weaker the test. As the amount of within group variation increases, power decreases, as seen in the reduction in the shaded blue area.*      
+
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/hypothesis_plot_effect.png)    
+*Figure 5:  Altering the effect size changes the power. As the effect size increases, the two distribution move further apart. As effect size increases, power increases as shown by the increase in size of the blue shaded area.*  
+
+Thus:   
+
+    * Increased sample size leads to increased power   
+    * Lower within-group variability leads to increased power    
+    * Strong effect sizes leads to increased power   
+    * Increased α-level leads to increased power   
+    
+Below is an R code to create similar plots to those above that allows for the parameters, within group variation (sigma), alternative hypothesis mean (mua), sample size (n), and α-level (alpha), to be manipulated. This R code was created by Brain Caffo from John Hopkins University as part of [Coursera’s Statistical Inference course](https://github.com/bcaffo/courses/tree/master/06_StatisticalInference/11_Power).    
+
+```{r, eval=FALSE}
+if("manipulate" %in% rownames(installed.packages()) == FALSE) {install.packages("manipulate")}
+if("ggplot2" %in% rownames(installed.packages()) == FALSE) {install.packages("ggplot2")}
+library(manipulate) 
+library(ggplot2)
+
+mu0 = 30 
+
+myplot <- function(sigma, mua, n, alpha) { 
+    g = ggplot(data.frame(mu = c(27, 36)), aes(x = mu)) 
+    g = g + stat_function(fun = dnorm, geom = "line", 
+                          args = list(mean = mu0, sd = sigma/sqrt(n)), 
+                          size = 2, col = "red") 
+    g = g + stat_function(fun = dnorm, geom = "line", 
+                          args = list(mean = mua, sd = sigma/sqrt(n)), 
+                          size = 2, col = "blue") 
+    xitc = mu0 + qnorm(1 - alpha) * sigma/sqrt(n) 
+    g = g + geom_vline(xintercept = xitc, size = 3) + 
+        theme_bw() + ylim(0,0.4)
+    g 
+} 
+
+manipulate(myplot(sigma, mua, n, alpha), 
+sigma = slider(1, 10, step = 1, initial = 4), 
+mua = slider(30, 35, step = 1, initial = 32), 
+n = slider(1, 50, step = 1, initial = 16), 
+alpha = slider(0.01, 0.1, step = 0.01, initial = 0.05))
+```
+
+All studies should aim to have at least 80% power in their statistical test. Therefore, power and α-level (for setting the α-level see "Multiple testing" section below) will always be known parameters in equations. Power calculations can be used to find the sample size needed for the study, or the effect size that a test is powered to detect. Some examples of questions that might be ask are:  
+
+    1. What is the sample size required to have 80% power to detect an effect size of 2?  
+    2. What is the effect size that can be detected in a sample of 200 individuals having 80% power?   
+
+## Multiple testing
+A p-value is the probability of obtaining a test statistic at least as extreme as the one that was actually observed, assuming that the null hypothesis is true. When a critical value point of 0.05 is used then there is 5% chance that a single test will exceed this value, and there we reject the null hypothesis but the null hypothesis is true, causing a type I error (also known as a false positive). Using a critical value of 0.05, means we are allowing for a 5% false positive rate.   
+
+However, if we performed 100 tests instead of 1, how many tests will we call significant using a critical value of 0.05 when their null hypothesis is true? We would call 5 test significant, and these 5 may be false positives, only being declared significant because of the rate of false positives we are allowing. Increasing number of tests performed will produce increasing number of false positives.   
+
+This is called the burden of multiple testing, and there are a number of ways we can adjust our results based on the number of multiple tests we performed. Here are three different ways to correct for performing multiple tests:
+
+###Familywise error rate (FWER)  
+One type of correction is the familywise error rate (FWER) which is a term that encompasses numerous methods including Bonferroni, Šidák, Tukey’s and Dunnett's correction, among others. All FWER corrections work to control the probability of at least one type I error, and they do this by adjusting the critical value downwards (meaning making it harder to reject the null hypothesis) as a way to reduce the number of type I errors.  
+
+The most widely used FWER is the Bonferroni correction which divides the critical value by the number of tests performed to obtain a new critical value. The Bonferroni correction sets the significance cut-off at α/n, where α is the critical value (usually 0.05) and n is the number of hypotheses tested. For example, if you test 8 hypotheses with a critical value of 0.05, the Bonferroni correction would alter the critical value to be 0.00625 (or 0.05/8). This *assumes that all the hypotheses tested are independent*, and this correction is generally considered to be conservative in the context of correlated tests, potentially leading to a high rate of false negatives.   
+
+This correction can be done in R using the [p.adjust command](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/p.adjust.html) with the following syntax:
+```{r, eval = FALSE}
+# Load in your results file with one row per test and columns containing the results for those test (i.e. p_values. etc.)
+# important to have a header row with your pvalue column labeled "p_value"
+# you can save excel table in text tab delimited format (.txt) using the save as function
+results <- read.table("TABLE_WITH_RESULTS.txt", header=TRUE)
+
+# this command creates a new column in your results file that will contain the bonferroni corrected p-values
+results$bonferroni_p <- p.adjust(results$p_value, method="bonferroni")
+
+# export the data -- save it using a different name than what you exported
+write.table(results, file="TABLE_WITH_RESULTS_ADJUSTED.txt", 
+            header=TRUE, row.names = FALSE)
+```
+
+
+###False discovery rates (FDR)  
+Another type of correction is the false discovery rate (FDR) which is a term that encompasses numerous methods including Benjamini-Hochberg and Benjamini–Hochberg–Yekutieli correction. FDR controls the expected proportion of false positives (or type I error) (or FDR aims to control the proportion of incorrect rejections among all rejections of the null hypothesis). If a p-value of 0.05 implies that 5% of all tests will result in false positives (type I errors), while an FDR adjusted p-value (also known as a q-value) of 0.05 implies that 5% of significant tests will result in false positives (type I errors).  FDR is not as conservative as FWER procedures. FDR have greater power at the cost of increased type I error rates.  
+
+The most widely used FDR is the Benjamini–Hochberg procedure (BH). BH sorts the p-values in ascending order  (smallest to largest), and then divides each observed p-value by its percentile rank to get an estimated FDR. The adjusted p-value results from BH are referred to as a q-value. These can be treated the same as p-values, with q-values less than 0.05 (the critical value) being used to determine rejection of the null hypothesis (meaning a significant result). The BH method *assumes that all the hypotheses tested are independent*. There are other FDR corrections, the Benjamini and Yekutieli ([link](http://www.math.tau.ac.il/~ybenja/MyPapers/benjamini_yekutieli_ANNSTAT2001.pdf)), and Storey's pFDR method ([link](http://onlinelibrary.wiley.com/store/10.1111/1467-9868.00346/asset/1467-9868.00346.pdf;jsessionid=E84037C81B9ABCCECCDE9140A893F0A8.f02t02?v=1&t=ir6825mu&s=14a8d2099f90da01235eee222b641adc37bcda31&systemMessage=Wiley+Online+Library+will+be+unavailable+on+Saturday+30th+July+2016+from+08%3A00-11%3A00+BST+%2F+03%3A00-06%3A00+EST+%2F+15%3A00-18%3A00+SGT+for+essential+maintenance.Apologies+for+the+inconvenience.)), which can be used for some cases of dependent tests  however caution should be used as data should meet all assumption for the correction to be valid. If you have dependent test, BH method of FDR is not valid. 
+
+This correction can be done in R using the [p.adjust command](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/p.adjust.html) with the following syntax:
+```{r, eval = FALSE}
+# Load in your results file with one row per test and columns containing the results for those test (i.e. p_values. etc.)
+# important to have a header row with your pvalue column labeled "p_value"
+# you can save excel table in text tab delimited format (.txt) using the save as function
+results <- read.table("TABLE_WITH_RESULTS.txt", header=TRUE)
+
+# this command creates a new column in your results file that will contain the FDR corrected p-values
+results$fdr <- p.adjust(results$p_value, method="fdr")
+
+# export the data -- save it using a different name than what you exported
+write.table(results, file="TABLE_WITH_RESULTS_ADJUSTED.txt", 
+            header=TRUE, row.names = FALSE)
+```
+
+###Permutation  
+This correction is different to the others in that it creates a null distribution of results. This is done by randomly shuffle the dependent variable, and re-run the statistical test multiple times, meaning you randomize the dependent variable, run the statistical test, then randomize the dependent variable again, run the test again. This is repeated 10,000 times, creating an empirical distribution of test results, which may be thought of a distribution of potential null hypothesis results. A permute p-value is calculated by determining how many of the null distribution results are more extreme than the observed result, or in other words, is the true result seen more often than expected by chance. Permutation is a robust but computationally intensive alternative to the Bonferroni correction in the face of dependent tests.
+
+The following code can be adapted to perform permutations:
+```{r, eval = FALSE}
+# load required libraries
+if("permute" %in% rownames(installed.packages()) == FALSE) {install.packages("permute")}
+if("mosaic" %in% rownames(installed.packages()) == FALSE) {install.packages("mosaic")}
+if("coin" %in% rownames(installed.packages()) == FALSE) {install.packages("coin")}
+library(permute)
+library(mosaic)
+library(coin)
+
+# Load in your data file used to perform the statistical test
+# can save excel table in text tab delimited format (.txt) using the save as function
+mydata <- read.table("TABLE_OF_DATA_USED_IN_STATISTICAL_TEST.txt", header=TRUE)
+
+# set the number of permutations need 
+numsim = 10000
+
+# set a seed -- setting a seed will ensure that the results are reproducible as every time you run the code the same seed will be used
+set.seed(12345)
+
+# run permutations
+# this for command will run the command between the {} for each of the multiple INDEPENDENT_VARIABLEs
+for (i in c("INDEPENDENT_VARIABLE1", "INDEPENDENT_VARIABLE2", 
+            "INDEPENDENT_VARIABLE3")) {
+    
+    # this is running statistical test a number of times
+    # in this example the test is a linear regression, other methods can be done -- contact data-clinic@cardiff.ac.uk for more help
+    # $coefficients[, 4] this part extracts the relevant information from the test statistic result
+    res = do(numsim) * summary(lm(shuffle(DEPENDENT_VARIABLE) ~ mydata[,i],
+                                  data=mydata))$coefficients[, 4]
+    
+    # this runs the OBSERVED results (the unshuffled analysis)
+    fit  <- lm(DEPENDENT_VARIABLE ~ mydata[,i], data=mydata)
+    
+    # this extracts the relevant information from the OBSERVED results
+    obs <- summary(fit)$coefficients[2, 4]
+    
+    # this calculates a permutation p-value
+    permuted_pvalue = sum(abs(res[,2]) < abs(obs)) / numsim
+    
+    # this prints to the screen the results from the permutations
+    print(c("DEPENDENT_VARIABLE",i,permuted_pvalue))
+}
+```
+
+##Winner’s Curse
+In auctions, the winner tends to overpay compared to average bid for the item. This is also true in hypothesis testing, the first report of a significant test (the winner) will overestimate the effect size compared to what is reported in subsequent replication studies. Subsequent results, obtained from replication effort, will exhibit a regression to the mean which will be the true effect. Therefore, it is essential to replicate your results.  
+
+##Replication requirements  
+Because of the Winner’s Curse phenomenon, it is essential for all research to be replicated to be estimated the true effect size. There are some basic requirements for replication studies that should be done.  
+
+    * The statistical test for the independent replication sample is significant at an adjusted critical value of at least 0.05 (adjusted here means corrected for multiple testing).  
+
+
+    * The statistical test has to have the same direction of effect. This mean that is the effect was positive in the original test, in the replication it has to be positive as well. If it is negative in the replication, it is not replicating.   
+
+
+    * The independent replication study should be as similar as possible to the discovery study. This means that it should be testing the same independent variables using the same covariates in a sample from the same population
+
+
+    * Replication study should have enough power to replicate the result.  
+
+## R package
+For a lot of statistical tests, power calculations can be done in R using the [pwr library](https://cran.r-project.org/web/packages/pwr/pwr.pdf) which implements power analyses as outlined in [Cohen 1998](https://www.amazon.co.uk/Statistical-Power-Analysis-Behavioral-Sciences/dp/0805802835), which is what will be used here. For genetic data, [Quanto](http://biostats.usc.edu/Quanto.html) is recommended, and is what will be used here. 
+
+# Data/Statistical Types
+
+##Questionnaire
+Questionnaire data does not really utilise the terminology power, but it is common to ask how many participants are needed for the results to be valid. To determine this, you need to know the **target population size** (this is the total size of the population, *NOT* your sample size), the desired **margin of error** and the desired **confidence level**. 
+
+The **target population size** is the total number of people in the population you are interested in. If your questionnaire is about quality of undergraduate student life at Cardiff University, then your population size is the total number of undergraduates enrolled at Cardiff University. 
+
+A **margin of error** is the metrics about the precision of the questionnaire results. For example, if you asked a yes/no question with 47% saying no and had a margin of error would be 10%, then we can be "sure" that between 37% (47-10) and 57% (47+10) of all the target population would have said no. However, if our margin of error was 2, then we can be "sure" that between 45% (47-2) and 49% (47+2) of all the target population would have said no. The higher the margin of error, the less reliable the data is. A lower margin of error is clearly better, but is more expensive as it requires a larger sample size. 5% is the most commonly used margin of error, but they can range between 1% to 10%. Margins of errors above 10% are not recommended. 
+
+**Confidence level** is a measurement of how accurately the sample samples the population, or another way, how sure we are that the answers from our sample can be generalized to the target population. Since we are only selecting a sample of the target population, if we were to random select another sample from the target population how similar would the result be? We use confidence levels to estimate this. A confidence level is the percentage of all possible samples that can be expected to include the true target population parameter. If our confidence level is 95%, then 95 out of 100 times our results will correctly generalize to the target population. If our confidence level is 99%, then 99 out of 100 times our results will generalize correctly to then target population. A higher confidence level is better, but is more expensive as it requires a larger sample size. Confidence levels are usually set to 95%, but can range from 90% to 99%. Confidence levels below 90% are not recommended. 
+
+The formula for calculating sample size for questionnaires is:
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/questionnaire_power.png)
+
+where *N* is the population size, *e* is the margin of error in decimal form (5% is 0.05), and *z* is the z-score for the confidence interval (confidence interval of 95% is a z-score of 1.96). *p* is the response distribution, and for determining sample size this should be set to 0.5 (and if not known). 
+
+###Questionnaire calculate sample size
+There are numerous online calculators [here](https://www.surveymonkey.co.uk/mp/sample-size-calculator/) and [here](http://fluidsurveys.com/survey-sample-size-calculator/)
+
+Or you can input numbers into R using the following code to find the **sample size**:
+```{r, eval=FALSE}
+# run this -- this will not do anything but load the function questionnaire_number into R
+questionnaire_number <- function(population, cl, me){
+    zscore = qnorm( ((1-cl)/2) + cl )
+    sample_size =  ceiling((((zscore^2)*(0.5^2))/(me^2)) / ( 1 + (((zscore^2)*(0.5^2))/(me^2*population))))
+    return(paste("Sample size required is", sample_size, sep=" "))
+}
+
+# after population= your population size, cl= your desired confidence level, and me= your desired margin of error
+questionnaire_number(population = , ci = , me = )
+```
+
+###Questionnaire calculate margin of error
+You can also determine the **margin of error** for the questionnaire given a specific sample size (for circumstances where the data has already been collected). There is an online calculator [here](https://www.surveymonkey.co.uk/mp/margin-of-error-calculator/).
+
+Or you can input numbers into R using the following code to find the **margin of error**:
+```{r, eval=FALSE}
+# run this -- this will not do anything but load the function questionnaire_me into R
+questionnaire_me <- function(population, sample_size, cl){
+    zscore = qnorm( ((1-cl)/2) + cl )
+    p = sample_size / population
+    me = round(zscore * sqrt( (p*(1-p)) / (sample_size) ), digits = 2)
+    return(paste("Margin of error is", me, sep=" "))
+}
+
+# after population= your population size, sample_size= put your sample_size,  cl= put your desired confidence level
+questionnaire_me(population = , sample_size = , ci = )
+```
+
+Another factor worth consideration when designing a questionnaire study is **response rate**. That is how many people will complete the survey of those you contact. If you require a sample size of 500, a response rate of 20% means you need to contact 2,500 individuals to have a chance that 500 people will complete the questionnaire. There are numerous factors that can effect response rates. Response rates can range from as low as 5% to as high as 85%, but it is highly unlikely that the response rate for a questionnaire will be 100%. It is worth taking expected response rates into consideration when designing a questionnaire study. 
+
+### Further reading 
+Further information about questionnaire study design can be found [here](https://www.rds-yh.nihr.ac.uk/wp-content/uploads/2013/05/12_Surveys_and_Questionnaires_Revision_2009.pdf) and [here] (http://www.ats.ucla.edu/stat/examples/msm_goldstein/goldstein.pdf).  
+
+Any queries about performing power calculations for questionnaires, please email [data-clinic@cardiff.ac.uk](mailto: data-clinic@cardiff.ac.uk), or drop in to a free Data Clinic session held every Tuesday from 3pm at the Henry Wellcome Building on the Health Campus or every Thursday from 3pm at the Haydn Ellis Building on Maindy Road.   
+
+##T-test
+T-test is the comparison of means used to determine if two sets of data are significantly different from each other. Calculating power for a t-test varies slightly depending on if you are doing a one sample, two sample or paired sample t-test (see below). It also depends on if you are doing a one-sided or two-sided test.    
+
+###Two-sided test
+A *two-sided test* tests for the possibility of a relationship in both directions (greater than and less than the mean) in order to ensure that an effect is not missed. A two-sided allocates half of the critical value to each side of the test distribution, meaning that if the critical value is 0.05 (5%) then 0.025 (2.5%) is the critical value on each tail of the distribution (Figure 6). This test is preferable in situations where you do not have a hypothesis about the direction of effect, or you want to ensure that an effect going in the direction opposed to that hypothesized is not missed.    
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/two_sided_test.png)  
+*Figure 6: Dark blue area shows the alpha area in the null hypothesis distribution. Values falling in either region are considered for rejecting the null hypothesis. They occur at either end of distribution. Taken from [here](http://www.ats.ucla.edu/stat/mult_pkg/faq/general/tail_tests.htm).*  
+
+###One-sided test
+A *one-sided test* tests for the possibility of a relationship in one direction (either greater than or less than the mean). A one-sided test means that the critical value is allocated to only one side of the distribution, so if the critical value is 0.05 (5%) then 0.05 (5%) is the critical value for one tail of the distribution (Figure 7). This means that there is a larger area for rejecting the null hypothesis on one side of the distribution than the two sided test. The other tail has no critical value, so any result on that tail will never result in rejecting of the null hypothesis. This test is preferable in situations where you have a strong hypothesis about the direction of effect, meaning you only want to test if the alternative is greater than the null mean and do not care if it is less than. One-tailed tests provide more power, however there are consequences of missing an effect in the untested direction, and an incorrect acceptance of the null hypothesis occur. One should **NEVER** run a one-tailed test after running a two-tailed just to get a significant result.    
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/one_sided_test1.png)
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/one_sided_test2.png)  
+*Figure 7: Dark blue area shows the alpha area in the null hypothesis distribution. Values falling in the region are considered for rejecting the null hypothesis. They occur at one end of distribution but not the other depending on whether the test is for being significantly greater than (right side figure) or less than (left side figure) the mean. Taken from [here](http://www.ats.ucla.edu/stat/mult_pkg/faq/general/tail_tests.htm).*    
+
+We will provide examples for doing power calculations in one-sided and two-sided tests.  
+
+###One-Sample Tests
+One-sample tests are for when you only have one sample and you are testing if the sample mean differs from the population mean, which is known.  
+
+The examples below use the *pwr.t.test* command from the [pwr package](https://cran.r-project.org/web/packages/pwr/pwr.pdf) in R. There are multiple input variables required for the calculation:   
+
+> *n* is the sample size   
+
+> *d* is effect size. Here it is referring to Cohen's d, the standardized mean difference, which is the difference in means divided by the pooled standard deviation. Cohen's d of 0.2 represents a small effect size, 0.5 represents a medium effect size, and 0.8 represents a large effect size. See [here](http://www.sciencedirect.com/science/book/9780121790608), [here](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3444174/), and [here](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3840331/) for more information.   
+
+> *sig.level* is the critical value. If you are doing one test, this can be set to 0.05. If you are doing multiple tests, see the section on multiple testing.   
+
+> *power* is the power that you want. 80% power is what is desired for a test. Power should *never* be set lower than 80% but can be set higher if desired.   
+
+> *type* is set here to "one.sample" as we are doing a one-sample test.  
+
+> *alternative* is where we choose what side test we want. Our options are "two.sided" for a two-sided test (see above), "greater" for a one-side test that tests if the alternative is greater than the null mean, or "less" for a one-sided test that tests if the alternative is less than the null mean.   
+
+If you leave one of these (*n*, *d*, *sig.level* or *power*) blank (leave as equal to NULL) and give information for all the others, then that is the variable that is solved for.  
+
+####One-Sample Tests Calculate Power
+We can calculate *power* by leaving *power* as NULL in the *pwr.t.test*, and setting values for all other variables. Here are some examples:
+
+If we want to know what our *power* is to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) doing a one-sample (*type*) two-sided test (*alternative*) with a sample size (*n*) of 100, we would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = 100, d = 0.3, sig.level = 0.05, power = NULL, type = "one.sample", alternative = "two.sided")
+```
+which tells us we would have a power of 0.844 to detect a standardized mean difference (the effect size) of 0.3 or greater with a sample size of 100 performing a two-sided test.     
+
+If we want to know what our *power* is to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) doing a one-sample (*type*) one-sided test (*alternative*) testing for greater than the mean with a sample size (*n*) of 100, we would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = 100, d = 0.3, sig.level = 0.05, power = NULL, type = "one.sample", alternative = "greater")
+```
+which tells us we would have a power of 0.909 to detect a standardized mean difference (the effect size) of 0.3 or greater with a sample size of 100 performing a one-sided test.    
+
+####One-Sample Tests Calculate Sample Size needed
+We can calculate sample size (*n*) by leaving *n* as NULL in the *pwr.t.test*, and setting values for all other variables. Here are some examples:
+
+For example, if we want to know what our sample size (*n*) needs to be for 80% *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) doing a one-sample (*type*) two-sided test (*alternative*), we would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = NULL, d = 0.3, sig.level = 0.05, power = 0.8, type = "one.sample", alternative = "two.sided")
+```
+Which would tell us we need 89.14936 (or 90 rounding up) individuals to detect a standardized mean difference (the effect size) of 0.3 or greater with 80% power performing a two-sided test.    
+
+If we want to know what our sample size (*n*) needs to be for 80% *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) doing a one-sample (*type*) one-sided test (*alternative*) testing for greater than the mean, we would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = NULL, d = 0.3, sig.level = 0.05, power = 0.8, type = "one.sample", alternative = "greater")
+```
+Which would tell us we need 70.06793 (or 71 rounding up) individuals to detect a standardized mean difference (the effect size) of 0.3 or greater with 80% power performing a one-sided test.   
+
+####One-Sample Tests Calculate Effect Size (d)
+We can also calculate what effect size (*d*) (the standardized mean difference) we have power to detect given sample size (*n*) and *power* by leaving *d* as NULL in the *pwr.t.test*, and setting values for all other variables. Here are some examples:
+
+If we want to know what effect size *d* we can detect with a sample size (*n*) of 100, 80% *power* at a critical value of 0.05 (*sig.level*) doing a one-sample (*type*) two-sided test (*alternative*), we would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = 100, d = NULL, sig.level = 0.05, power = 0.8, type = "one.sample", alternative = "two.sided")
+```
+which tells us we would have 80% power to detect a standardized mean difference (the effect size) of 0.2829005 with a sample size of 100 individuals performing a two-sided test.    
+
+If we want to know what effect size (*d*) (the standardized mean difference) we can detect with a sample size (*n*) of 100, 80% *power* at a critical value of 0.05 (*sig.level*) doing a one-sample (*type*) one-sided test (*alternative*) testing for greater than the mean, we would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = 100, d = NULL, sig.level = 0.05, power = 0.8, type = "one.sample", alternative = "greater")
+```
+which tells us we would have 80% power to detect a standardized mean difference (the effect size) of 0.2503641 with a sample size of 100 individuals performing a one-sided test.  
+
+###Two-Sample Tests
+Two-sample tests are when you have information on two groups and you want to test if the means of those two groups differ from each other. The following example power calculations all assume that the two groups are of ***equal sizes***. If you have unequal groups, then see the section about Unequal sample size two-sample test below.   
+
+Power for a two-sample t-test is calculated using the *pwr.t.test* command from the [pwr package](https://cran.r-project.org/web/packages/pwr/pwr.pdf) in R, and has the same variables as above (*d*, *sig.level*, *power*, *alternative*, *type*). *type* is set to "two.sample" for two-sample t-tests. 
+
+If you leave one of these (*n*, *d*, *sig.level* or *power*) blank (leave as equal to NULL) and give information for all the others, then that is the variable that is solved for.   
+
+####Two-Sample Tests Calculate Power
+We can calculate *power* by leaving *power* as NULL in the *pwr.t.test*, and setting values for all other variables. Here are some examples:  
+
+If we want to know what our *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) doing a two-sample (*type*) two-sided test (*alternative*) with a sample size (*n*) of 200. *n* for the script needs to be the sample size per group, so 200 is our total sample size, but that results in 100 individuals per group, so 100 is the number inputted for *n*. We would run the following code:     
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = 100, d = 0.3, sig.level = 0.05, power = NULL, type = "two.sample", alternative = "two.sided")
+```
+which tells us we would have a power of 0.560 to detect a standardized mean difference (the effect size) of 0.3 or greater with a sample size of 200 individuals (100 per group) performing a two-sided test.   
+
+If we want to know what our *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) doing a one-sample (*type*) one-sided test (*alternative*) testing for greater than the mean with a sample size (*n*) of 200. *n* for the script needs to be the sample size per group, so 200 is our total sample size, but that results in 100 individuals per group, so 100 is the number inputted for *n*. We would run the following code:    
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = 100, d = 0.3, sig.level = 0.05, power = NULL, type = "two.sample", alternative = "greater")
+```
+which tells us we would have a power of 0.681 to detect a standardized mean difference (the effect size) of 0.3 or greater with a sample size of 200 individuals (100 per group) performing a one-sided test.   
+
+####Two-Sample Tests Calculate Sample Size needed
+We can calculate sample size (*n*) by leaving *n* as NULL in the *pwr.t.test*, and setting values for all other variables. Here are some examples:
+
+For example, if we want to know what our sample size (*n*) needs to be for 80% *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) doing a two-sample (*type*) two-sided test (*alternative*), we would run the following code:    
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = NULL, d = 0.3, sig.level = 0.05, power = 0.8, type = "two.sample", alternative = "two.sided")
+```
+Which would tell us we need 175.3847 (or 176 rounding up) individuals in each group for 80% power to detect a standardized mean difference (the effect size) of 0.3 or greater performing a two-sided test. The *NOTE:* in the output explains that this sample size is for **each** group, meaning that you need in total 352 individuals, with 176 in each two group.      
+
+If we want to know what our sample size (*n*) needs to be for 80% *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) doing a two-sample (*type*) one-sided test (*alternative*) testing for greater than the mean, we would run the following code:    
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = NULL, d = 0.3, sig.level = 0.05, power = 0.8, type = "two.sample", alternative = "greater")
+```
+Which would tell us we need 138.0715 (or 139 rounding up) individuals in each group for 80% power to detect a standardized mean difference (the effect size) of 0.3 or greater performing a one-sided test.  The *NOTE:* in the output explains that this sample size is for **each** group, meaning that you need in total 278 individuals, with 139 in each group.     
+
+####Two-Sample Tests Calculate Effect Size (d)
+We can also calculate what effect size (*d*) (the standardized mean difference) we have power to detect given sample size (*n*) and *power* by leaving *d* as NULL in the *pwr.t.test*, and setting values for all other variables. Here are some examples:
+
+If we want to know what effect size *d* we can detect with a sample size (*n*) of 200, 80% *power* at a critical value of 0.05 (*sig.level*) doing a two-sample (*type*) two-sided test (*alternative*). Again, *n* for the script needs to be the sample size per group, so 200 is our total sample size, but that results in 100 individuals per group, so 100 is the number inputted for *n*. We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = 100, d = NULL, sig.level = 0.05, power = 0.8, type = "two.sample", alternative = "two.sided")
+```
+which tells us we would have 80% power to detect a standardized mean difference (the effect size) of 0.398 with a sample size of 200 (100 per group) performing a two-sided test.      
+
+If we want to know what effect size (*d*) (the standardized mean difference) we can detect with a sample size (*n*) of 100, 80% *power* at a critical value of 0.05 (*sig.level*) doing a two-sample (*type*) one-sided test (*alternative*) testing for greater than the mean. Again, *n* for the script needs to be the sample size per group, so 200 is our total sample size, but that results in 100 individuals per group, so 100 is the number inputted for *n*. We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = 100, d = NULL, sig.level = 0.05, power = 0.8, type = "two.sample", alternative = "greater")
+```
+which tells us we would have 80% power to detect a standardized mean difference (the effect size) of 0.353 with a sample size of 200 (100 per group) performing a one-sided test.  
+
+###Unequal sample size two-sample test
+If you have two independent groups that are of different sizes, instead of using the *pwr.t.test* command, you would use the *pwr.t2n.test* command from the [pwr package](https://cran.r-project.org/web/packages/pwr/pwr.pdf) in R to calculate power. This has the some of the same variables as above (*d*, *sig.level*, *power*, *alternative*). It does not include *type* as the test is assumed to be a two-sample test. Instead of *n*, it has *n1* and *n2* which are the sample size for group 1 (*n1*) and group 2 (*n2*).    
+
+If you leave one of these (*n1*, *n2*, *d*, *sig.level* or *power*) blank (leave as equal to NULL) and give information for all the others, then that is the variable that is solved for.    
+
+####Unequal Two-Sample Tests Calculate Power
+We can calculate *power* by leaving *power* as NULL in the *pwr.t2n.test*, and setting values for all other variables. Here are some examples:  
+
+If we want to know what our *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) performing a two-sided test (*alternative*) with a sample size in group 1 (*n1*) of 100 and in group 2 (*n2*) of 75. We would run the following code:     
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t2n.test(n1 = 100, n2 = 75, d = 0.3, sig.level = 0.05, power = NULL, alternative = "two.sided")
+```
+which tells us we would have a power of 0.497 to detect a standardized mean difference (the effect size) of 0.3 or greater with a sample size of 100 in group 1 and 75 in group 2 performing a two-sided test.  
+
+If we want to know what our *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) performing a one-sided test (*alternative*) testing for greater than the mean with a sample size in group 1 (*n1*) of 100 and in group 2 (*n2*) of 75. We would run the following code:     
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t2n.test(n1 = 100, n2 = 75, d = 0.3, sig.level = 0.05, power = NULL, alternative = "greater")
+```
+which tells us we would have a power of 0.622 to detect a standardized mean difference (the effect size) of 0.3 or greater with a sample size of 100 in group 1 and 75 in group 2 performing a one-sided test.
+
+####Unequal Two-Sample Tests Calculate Sample Size needed
+We can calculate sample size for a group (*n2*) by leaving *n2* as NULL in the *pwr.t2n.test*, and setting values for all other variables. Here are some examples:
+
+For example, if we want to know what our sample size for group 2 (*n2*) needs to be for 80% *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) performing a two-sided test (*alternative*) with a sample size for group 1 of 100, we would run the following code:    
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t2n.test(n1 = 100, n2= NULL, d = 0.3, sig.level = 0.05, power = 0.8, alternative = "two.sided")
+```
+which tells us that group 2 sample size (*n2*) needs to be 694.9932 (695 rounding up) individuals for 80% power to detect a standardized mean difference (the effect size) of 0.3 or greater with sample size for group 1 of 100 performing a two-sided test.  
+
+If we want to know what our sample size for group 2 (*n2*) needs to be for 80% *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) performing a one-sided test (*alternative*) testing for greater than the mean with a sample size for group 1 of 100, we would run the following code:    
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t2n.test(n1 = 100, n2= NULL, d = 0.3, sig.level = 0.05, power = 0.8, alternative = "greater")
+```
+which tells us that group 2 sample size (*n2*) needs to be 222.4386 (223 rounding up) individuals for 80% power to detect a standardized mean difference (the effect size) of 0.3 or greater with sample size for group 1 of 100 performing a one-sided test.  
+
+####Unequal Two-Sample Tests Calculate Effect Size (d)
+We can also calculate what effect size (*d*) (the standardized mean difference) we have power to detect given sample size (*n1* and *n2*) and *power* by leaving *d* as NULL in the *pwr.t2n.test*, and setting values for all other variables. Here are some examples:
+
+If we want to know what effect size *d* we can detect with a sample size in group 1 (*n1*) of 100 and in group 2 (*n2*) of 75, 80% *power* at a critical value of 0.05 (*sig.level*) doing a two-sided test (*alternative*). We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t2n.test(n1 = 100, n2= 75, d = NULL, sig.level = 0.05, power = 0.8, alternative = "two.sided")
+```
+which tells us we would have 80% power to detect a standardized mean difference (the effect size) of 0.430 with a sample size in group 1 of 100 and in group 2 of 75 performing a two-sided test.         
+
+If we want to know what effect size (*d*) (the standardized mean difference) we can detect with a sample size in group 1 (*n1*) of 100 and in group 2 (*n2*) of 75, 80% *power* at a critical value of 0.05 (*sig.level*) performing a one-sided test (*alternative*) testing for greater than the mean. We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t2n.test(n1 = 100, n2= 75, d = NULL, sig.level = 0.05, power = 0.8, alternative = "greater")
+```
+which tells us we would have 80% power to detect a standardized mean difference (the effect size) of 0.381 with a sample size in group 1 of 100 and in group 2 of 75 performing a two-sided test.         
+
+###Paired Sample Tests
+There are two scenarios for using a paired sample test.
+
+    1. One group has been measure twice (repeated measures). This could be taking information/measurement from the same person before and after an exposure, for example, if you test the effect of a drug on a group, you would have data collected before and after treatment with that drug.   
+    2. Two groups have been matched. It is essential that matched groups are matched for as much information as possible. 
+
+Power for a paired t-test is calculated using the *pwr.t.test* command from the [pwr package](https://cran.r-project.org/web/packages/pwr/pwr.pdf) in R, and has the some of the same variables as above (*d*, *sig.level*, *power*, *alternative*, *type*). *type* is set to "paired" for paired sample t-tests.    
+
+If you leave one of these (*n*, *d*, *sig.level* or *power*) blank (leave as equal to NULL) and give information for all the others, then that is the variable that is solved for.    
+
+####Paired Sample Tests Calculate Power
+We can calculate *power* by leaving *power* as NULL in the *pwr.t.test*, and setting values for all other variables. Here are some examples:  
+
+If we want to know what our *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) doing a paired sample (*type*) two-sided test (*alternative*) with a sample size (*n*) of 100. 100 would be the number of pairs, not the total number of samples, so if we were doing a matched sample design, we would need 100 pairs of individuals or 200 individuals in total. We would run the following code:     
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = 100, d = 0.3, sig.level = 0.05, power = NULL, type = "paired", alternative = "two.sided")
+```
+which tells us we would have a power of 0.844 to detect a standardized mean difference (the effect size) of 0.3 or greater with a sample size of 100 pairs of individuals performing a two-sided test.  
+
+If we want to know what our *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) doing a paired sample (*type*) one-sided test (*alternative*) testing for greater than the mean with a sample size (*n*) of 100. 100 would be the number of pairs, not the total number of samples, so if we were doing a matched sample design, we would need 100 pairs of individuals or 200 individuals in total. We would run the following code:     
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = 100, d = 0.3, sig.level = 0.05, power = NULL, type = "paired", alternative = "greater")
+```
+which tells us we would have a power of 0.909 to detect a standardized mean difference (the effect size) of 0.3 or greater with a sample size of 100 pairs of individuals performing a one-sided test.  
+
+####Paired Sample Tests Calculate Sample Size needed
+We can calculate sample size (*n*) by leaving *n* as NULL in the *pwr.t.test*, and setting values for all other variables. Here are some examples:
+
+For example, if we want to know what our sample size (*n*) needs to be for 80% *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) doing a paired sample (*type*) two-sided test (*alternative*), we would run the following code:    
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = NULL, d = 0.3, sig.level = 0.05, power = 0.8, type = "paired", alternative = "two.sided")
+```
+which would tell us we need 89.14936 (or 90 rounding up) pairs of individuals for 80% power to detect a standardized mean difference (the effect size) of 0.3 or greater performing a two-sided test. This is the number of pairs, so if running a matched t-test, this means 90 pairs of individuals or 180 individuals in total.     
+
+If we want to know what our sample size (*n*) needs to be for 80% *power* to detect an effect size of 0.3 (*d*) at a critical value of 0.05 (*sig.level*) doing a paired sample (*type*) one-sided test (*alternative*) testing for greater than the mean, we would run the following code:    
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n= NULL, d = 0.3, sig.level = 0.05, power = 0.8, type = "paired", alternative = "greater")
+```
+which would tell us we need 70.06793 (or 71 rounding up) pairs of individuals for 80% power to detect a standardized mean difference (the effect size) of 0.3 or greater performing a one-sided test. This is the number of pairs, so if running a matched t-test, this means 71 pairs of individuals or 142 individuals in total.   
+
+####Paired Sample Tests Calculate Effect Size (d)
+We can also calculate what effect size (*d*) (the standardized mean difference) we have power to detect given sample size (*n*) and *power* by leaving *d* as NULL in the *pwr.t.test*, and setting values for all other variables. Here are some examples:
+
+If we want to know what effect size *d* we can detect with a sample size (*n*) of 100, 80% *power* at a critical value of 0.05 (*sig.level*) doing a paired sample (*type*) two-sided test (*alternative*). Again, 100 would be the number of pairs, not the total number of samples, so if we were doing a matched sample design, we would need 100 pairs of individuals or 200 individuals in total. We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = 100, d = NULL, sig.level = 0.05, power = 0.8, type = "paired", alternative = "two.sided")
+```
+which tells us we would have 80% power to detect a standardized mean difference (the effect size) of 0.283 with a sample size of 100 (matched) individuals performing a two-sided test.      
+
+If we want to know what effect size (*d*) (the standardized mean difference) we can detect with a sample size (*n*) of 100, 80% *power* at a critical value of 0.05 (*sig.level*) doing a paired sample (*type*) one-sided test (*alternative*). Again, 100 would be the number of pairs, not the total number of samples, so if we were doing a matched sample design, we would need 100 pairs of individuals or 200 individuals in total. We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.t.test(n = 100, d = NULL, sig.level = 0.05, power = 0.8, type = "paired", alternative = "greater")
+```
+which tells us we would have 80% power to detect a standardized mean difference (the effect size) of 0.250 with a sample size of 100 (matched) individuals performing a one-sided test.  
+
+### Further reading 
+More information about power calculations for t-tests can be found in this book [Cohen 1998](https://www.amazon.co.uk/Statistical-Power-Analysis-Behavioral-Sciences/dp/0805802835).  
+
+To calculate power for other types of t-tests, [G*Power](http://www.ats.ucla.edu/stat/gpower/anova.htm) is recommended as a freely available to download power calculator tool. Any queries about performing power calculations for other types of t-tests using G*Power, please email [data-clinic@cardiff.ac.uk](mailto: data-clinic@cardiff.ac.uk), or drop in to a free Data Clinic session held every Tuesday from 3pm at the Henry Wellcome Building on the Health Campus or every Thursday from 3pm at the Haydn Ellis Building on Maindy Road.   
+
+##Analysis of variance (ANOVA)
+One-way analysis of variance (ANOVA) are used to compare the means of three or more groups.  
+
+The examples below use the *pwr.anova.test* command from the [pwr package](https://cran.r-project.org/web/packages/pwr/pwr.pdf) in R. This calculates power for **one-way analysis of variance**. For other types of ANOVAs, [G*Power](http://www.ats.ucla.edu/stat/gpower/anova.htm) is recommended as a freely available to download power calculator tool. Any queries about performing power calculations for other types of ANOVAs using G*Power, please email [data-clinic@cardiff.ac.uk](mailto: data-clinic@cardiff.ac.uk), or drop in to a free Data Clinic session held every Tuesday from 3pm at the Henry Wellcome Building on the Health Campus or every Thursday from 3pm at the Haydn Ellis Building on Maindy Road.   
+
+There are multiple input variables required for the calculation using *pwr.anova.test* command from the [pwr package](https://cran.r-project.org/web/packages/pwr/pwr.pdf) in R:   
+
+> *k* is the number of groups.
+
+> *n* is the sample size. This is the number of individuals *per group*, **NOT** the total sample size.    
+
+> *f* is effect size, Cohen's f. To calculate Cohen's f, we use the following equation:   
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/cohensf.png)  
+*Figure 8: Cohen's f equation, taken from [here](http://www.statmethods.net/stats/power.html)*  
+Cohen's f value of 0.1 represents a small effect size, 0.25 represents a medium effect size, and 0.4 represent a large effect size. See [here](http://www.sciencedirect.com/science/book/9780121790608) for more information.    
+
+> *sig.level* is the critical value. If you are doing one test, this can be set to 0.05. If you are doing multiple tests, see the section on multiple testing.   
+
+> *power* is the power that you want. 80% power is what is desired for a test. Power should *never* be set lower than 80% but can be set higher if desired.   
+
+If you leave one of these (*k*, *n*, *f*, *sig.level* or *power*) blank (leave as equal to NULL) and give information for all the others, then that is the variable that is solved for.    
+
+###ANOVA Calculate Power
+We can calculate *power* by leaving *power* as NULL in the *pwr.anova.test*, and setting values for all other variables. Here are some examples:  
+
+If we want to know what our *power* to detect an effect size of 0.2 (*f*) at a critical value of 0.05 (*sig.level*) with three groups (*k*) each with a sample size (*n*) of 75. *n* for the script needs to be the sample size per group, so 75 is the sample size per group, meaning we have a total sample size of 225, but 75 is the number inputted for *n*. We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.anova.test(k = 3, n = 75, f = 0.2, sig.level = 0.05, power = NULL)
+```
+which tells us we would have a power of 0.765 to detect a Cohen's f (the effect size) of 0.2 or greater with three groups *each* with a sample size of 75.  
+
+###ANOVA Calculate Sample Size needed per group
+We can calculate sample size per group (*n*) by leaving *n* as NULL in the *pwr.anova.test*, and setting values for all other variables. Here are some examples:
+
+If we want to know what our sample size **per group** (*n*) needs to be for 80% *power* to detect an effect size of 0.2 (*f*) at a critical value of 0.05 (*sig.level*) with three groups (*k*), we would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.anova.test(k = 3, n = NULL, f = 0.2, sig.level = 0.05, power = 0.8)
+```
+which tells us we would need 81.29601 (82 rounding up) individuals **per group** to have 80% power to detect a Cohen's f (the effect size) of 0.2 or greater with three groups.     
+
+###ANOVA Calculate Effect Size (f)
+We can also calculate what effect size (*f*) we have power to detect given sample size **per group** (*n*) and *power* by leaving *f* as NULL in the *pwr.anova.test*, and setting values for all other variables. Here are some examples:
+
+If we want to know what effect size (*f*) we can detect with a sample size (*n*) **per group** of 75 with three groups (*k*) for 80% *power* at a critical value of 0.05 (*sig.level*). We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.anova.test(k = 3, n = 75, f = NULL, sig.level = 0.05, power = 0.8)
+```
+which tells us we would have 80% power to detect a Cohen's f (the effect size) of 0.208 or greater with three groups each with a sample size of 75.  
+
+### Further reading 
+More information about power calculations for ANOVA can be found in this book [Cohen 1998](https://www.amazon.co.uk/Statistical-Power-Analysis-Behavioral-Sciences/dp/0805802835).  
+
+The example here is only for a one-way ANOVA, to calculate power for other types of ANOVAs, [G*Power](http://www.ats.ucla.edu/stat/gpower/anova.htm) is recommended as a freely available to download power calculator tool. Any queries about performing power calculations for other types of ANOVAs using G*Power, please email [data-clinic@cardiff.ac.uk](mailto: data-clinic@cardiff.ac.uk), or drop in to a free Data Clinic session held every Tuesday from 3pm at the Henry Wellcome Building on the Health Campus or every Thursday from 3pm at the Haydn Ellis Building on Maindy Road.   
+
+##Chi-square test
+Chi-square tests goodness of fit test determines if a sample data matches a population.
+
+The examples below use the *pwr.chisq.test* command from the [pwr package](https://cran.r-project.org/web/packages/pwr/pwr.pdf) in R. There are multiple input variables required for the calculation:   
+
+> *N* is the **total** number of observations.   
+
+> *w* is effect size, Cohen's w. To calculate Cohen's w, we use the following equation:   
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/chiw.png)  
+*Figure 8: chi-square effect size _w_ equation, taken from [here](http://www.statmethods.net/stats/power.html)* 
+A Cohen's w value of 0.1 represents a small effect size, 0.3 represents a medium effect size, and 0.5 represent a large effect size. See [here](http://www.sciencedirect.com/science/book/9780121790608) for more information.    
+
+> *df* is the degrees of freedom. The number of degrees of freedom is calculated by (number of columns-1)x(number of rows-1). If you have a 2-by-3 table, it would be (2-1)x(3-1)=2, 2 degrees of freedom. Increasing the degrees of freedoms reduces power. 
+
+> *sig.level* is the critical value. If you are doing one test, this can be set to 0.05. If you are doing multiple tests, see the section on multiple testing.   
+
+> *power* is the power that you want. 80% power is what is desired for a test. Power should *never* be set lower than 80% but can be set higher if desired.   
+
+If you leave one of these (*N*, *w*, *power* or *sig.level*) blank (leave as equal to NULL) and give information for all the others, then that is the variable that is solved for.    
+
+###Chi-square test calculate Power
+We can calculate *power* by leaving *power* as NULL in the *pwr.chisq.test*, and setting values for all other variables. Here are some examples:  
+
+If we want to know what our *power* to detect an effect size of 0.2 (*w*) at a critical value of 0.05 (*sig.level*) with a total number of 200 observations (*N*) and 2 degrees of freedom (*df*). We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.chisq.test(w = 0.2, N = 200, df = 2, sig.level = 0.05, power = NULL)
+```
+which tells us we would have a power of 0.718 to detect a Cohen's w (the effect size) of 0.2 or greater with a total number of observations of 200 and 2 degrees of freedom.  
+
+###Chi-square test calculate total number of observations (N)
+We can calculate the total number of observations (*N*) by leaving *N* as NULL in the *pwr.chisq.test*, and setting values for all other variables. Here are some examples:
+
+If we want to know what our total number of observations (*N*) needs to be for 80% *power* to detect an effect size of 0.2 (*w*) at a critical value of 0.05 (*sig.level*) with 2 degrees of freedom (*df*), we would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.chisq.test(w = 0.2, N = NULL, df = 2, sig.level = 0.05, power = 0.8)
+```
+which tells us we would need 240.8672 (241 rounding up) observations to have 80% power to detect a Cohen's w (the effect size) of 0.2 or greater with 2 degrees of freedom.     
+
+###Chi-square test Calculate Effect Size (w)
+We can also calculate what effect size (*w*) we have power to detect given the total number of observations (*N*) and *power* by leaving *w* as NULL in the *pwr.chisq.test*, and setting values for all other variables. Here are some examples:
+
+If we want to know what effect size (*w*) we can detect with a total number of observations (*N*) of 200 with 2 degrees of freedom (*df*) for 80% *power* at a critical value of 0.05 (*sig.level*). We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.chisq.test(w = NULL, N = 200, df = 2, sig.level = 0.05, power = 0.8)
+```
+which tells us we would have 80% power to detect a Cohen's w (the effect size) of 0.219 or greater with a total number of 200 observations and 2 degrees of freedom.  
+
+### Further reading 
+More information about power calculations for chi-square test can be found in this book [Cohen 1998](https://www.amazon.co.uk/Statistical-Power-Analysis-Behavioral-Sciences/dp/0805802835).  
+
+Any queries about performing power calculations for chi-square test, please email [data-clinic@cardiff.ac.uk](mailto: data-clinic@cardiff.ac.uk), or drop in to a free Data Clinic session held every Tuesday from 3pm at the Henry Wellcome Building on the Health Campus or every Thursday from 3pm at the Haydn Ellis Building on Maindy Road.   
+
+
+## Correlation test
+Correlation tests the relatiionship between two variables.
+
+The examples below use the *pwr.r.test* command from the [pwr package](https://cran.r-project.org/web/packages/pwr/pwr.pdf) in R. There are multiple input variables required for the calculation:   
+
+> *n* is the number of observations.   
+
+> *r* is the linear correlation coefficient. This test is only valid for linear normally distributed correlations, and does not cover non-parametric tests.
+
+> *sig.level* is the critical value. If you are doing one test, this can be set to 0.05. If you are doing multiple tests, see the section on multiple testing.   
+
+> *power* is the power that you want. 80% power is what is desired for a test. Power should *never* be set lower than 80% but can be set higher if desired.  
+
+> *alternative* is where we choose what side test we want. Our options are "two.sided" for a two-sided test (see above), "greater" for a one-side test that tests if the alternative is greater than the null mean, or "less" for a one-sided test that tests if the alternative is less than the null mean.   
+
+If you leave one of these (*n*, *r*, *power* or *sig.level*) blank (leave as equal to NULL) and give information for all the others, then that is the variable that is solved for.    
+
+###Correlation test calculate Power
+We can calculate *power* by leaving *power* as NULL in the *pwr.r.test*, and setting values for all other variables. Here are some examples:  
+
+If we want to know what our *power* to detect a linear correlation coefficient of 0.2 (*r*) at a critical value of 0.05 (*sig.level*) performing a two-sided test (*alternative*) with a total number of 200 observations (*n*). We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.r.test(n = 200, r = 0.2, sig.level = 0.05, power = NULL, alternative = c("two.sided"))
+```
+which tells us we would have a power of 0.814 to detect linear correlation coefficient of 0.2 or greater with a total number of observations of 200 performing a two-sided test.   
+
+If we want to know what our *power* to detect a linear correlation coefficient of 0.2 (*r*) at a critical value of 0.05 (*sig.level*) performing a one-sided test (*alternative*) testing for greater than with a total number of 200 observations (*n*). We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.r.test(n = 200, r = 0.2, sig.level = 0.05, power = NULL, alternative = c("greater"))
+```
+which tells us we would have a power of 0.886 to detect a linear correlation coefficient of 0.2 or greater with a total number of observations of 200 performing a one-sided test.  
+
+
+###Correlation test calculate total number of observations (n)
+We can calculate the total number of observations (*n*) by leaving *n* as NULL in the *pwr.r.test*, and setting values for all other variables. Here are some examples:
+
+If we want to know what our total number of observations (*n*) needs to be for 80% *power* to detect a linear correlation coefficient of 0.2 (*r*) at a critical value of 0.05 (*sig.level*) performing a two-sided test (*alternative*), we would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.r.test(n = NULL, r = 0.2, sig.level = 0.05, power = 0.8, alternative = c("two.sided"))
+```
+which tells us we would need 193.0867 (194 rounding up) observations to have 80% power to detect a linear correlation coefficient of 0.2 or greater performing a two-sided test.     
+
+If we want to know what our total number of observations (*n*) needs to be for 80% *power* to detect a linear correlation coefficient of 0.2 (*r*) at a critical value of 0.05 (*sig.level*) performing a one-sided test (*alternative*) testing for greater than, we would run the following code:     
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.r.test(n = NULL, r = 0.2, sig.level = 0.05, power = 0.8, alternative = c("greater"))
+```
+which tells us we would need 152.416 (153 rounding up) observations to have 80% power to detect a linear correlation coefficient of 0.2 or greater performing a one-sided test.   
+
+###Correlation test calculate linear correlation coefficient (r)
+We can also calculate what linear correlation coefficient (*r*) we have power to detect given the total number of observations (*n*) and *power* by leaving *r* as NULL in the *pwr.r.test*, and setting values for all other variables. Here are some examples:
+
+If we want to know what linear correlation coefficient (*r*) we can detect with a total number of observations (*n*) of 200 for 80% *power* at a critical value of 0.05 (*sig.level*) performing a two-sided test (*alternative*). We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.r.test(n = 200, r = NULL, sig.level = 0.05, power = 0.8, alternative = c("two.sided"))
+```
+which tells us we would have 80% power to detect a linear correlation coefficient (r) of 0.197 or greater with a total number of 200 observations performing a two-sided test.   
+
+If we want to know what linear correlation coefficient (*r*) we can detect with a total number of observations (*n*) of 200 for 80% *power* at a critical value of 0.05 (*sig.level*) performing a one-sided test (*alternative*) testing for greater than. We would run the following code:   
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.r.test(n = 200, r = NULL, sig.level = 0.05, power = 0.8, alternative = c("greater"))
+```
+which tells us we would have 80% power to detect a linear correlation coefficient (r) of 0.175 or greater with a total number of 200 observations performing a one-sided test.  
+
+### Further reading
+More information about power calculations for chi-square test can be found in this book [Cohen 1998](https://www.amazon.co.uk/Statistical-Power-Analysis-Behavioral-Sciences/dp/0805802835).
+
+Any queries about performing power calculations for chi-square test, please email [data-clinic@cardiff.ac.uk](mailto: data-clinic@cardiff.ac.uk), or drop in to a free Data Clinic session held every Tuesday from 3pm at the Henry Wellcome Building on the Health Campus or every Thursday from 3pm at the Haydn Ellis Building on Maindy Road.   
+
+## General linear model
+
+
+u degrees of freedom for numerator
+v degrees of freedomfor denominator
+f2 effect size
+sig.level Significance level (Type I error probability)
+power Power of test (1 minus Type II error probability)
+
+
+The examples below use the *pwr.f2.test* command from the [pwr package](https://cran.r-project.org/web/packages/pwr/pwr.pdf) in R. There are multiple input variables required for the calculation:   
+
+> *u* is the number of degrees of freedom for numerator.   
+
+> *v* is the number of degrees of freedomfor denominator. 
+
+> *f2* is the effect size. To calculate f2, we use the following equation:   
+![](/Users/katherine/Documents/Cardiff_University_Admin/power/pictures/linear_f.png)   
+*Figure 8: f2 equation, taken from [here](http://www.statmethods.net/stats/power.html)*  
+
+> *sig.level* is the critical value. If you are doing one test, this can be set to 0.05. If you are doing multiple tests, see the section on multiple testing.  
+
+> *power* is the power that you want. 80% power is what is desired for a test. Power should *never* be set lower than 80% but can be set higher if desired.  
+
+If you leave one of these (*u*, *v*, *f2*, *power* or *sig.level*) blank (leave as equal to NULL) and give information for all the others, then that is the variable that is solved for.    
+
+### General linear model calculate Power
+
+
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.f2.test(u = 2, v = 8, f2 = 0.085, sig.level = 0.05, power = NULL)
+```
+
+
+### General linear model calculate total number of observations (n)
+
+
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.f2.test(u = 2, v = 8, f2 = NULL, sig.level = 0.05, power = 0.8)
+```
+
+
+### General linear model calculate the effect size (f2)
+
+
+```{r}
+# load required libraries
+if("pwr" %in% rownames(installed.packages()) == FALSE) {install.packages("pwr")}
+library(pwr)
+
+pwr.f2.test(u = 2, v = 8, f2 = NULL, sig.level = 0.05, power = 0.8)
+```
+
+
+### Further reading
+More information about power calculations for chi-square test can be found in this book [Cohen 1998](https://www.amazon.co.uk/Statistical-Power-Analysis-Behavioral-Sciences/dp/0805802835).
+
+Any queries about performing power calculations for chi-square test, please email [data-clinic@cardiff.ac.uk](mailto: data-clinic@cardiff.ac.uk), or drop in to a free Data Clinic session held every Tuesday from 3pm at the Henry Wellcome Building on the Health Campus or every Thursday from 3pm at the Haydn Ellis Building on Maindy Road.   
+
+## Genetic Data 
+Power calculations for genetic studies incorporates all of the above factors (effect size, sample size, and α-level), but is also effected by the minor allele frequency (MAF) of the genetic variant and, if not quantitative outcome, the prevalance of the disease. For large scale genetic studies, like genome-wide association studies (GWAS) or next generation sequencing studies (whole exome or whole genome), you set the MAF to the lower limit desired for power. For most GWAS studies, an MAF of 1% (0.01) is normal. For sequencing studies, MAF much lower would be used for power calculations (0.01% or lower). 
+
+Things that effect power in Genetic studies:  
+
+>   Magnitude of the Effect  
+>   Sample Size and Study Design
+>   Specified False-Positive Rate (critical value)
+>	Minor Allele Frequency
+>	Prevalence rate of disease
+>   Mode of Inheritance (additive, dominant, recessive)
+
+```{r, eval=FALSE}
+
+GPC(pA=0.01, pD=0.1, RRAa=, RRAA, r2, pB, nCase=500, ratio=1, alpha=0.05, quiet=FALSE)
+
+```
+
+QUANTO (screen shots; need to run on home computer as not Mac appropriate) 
+Genetic Power Calculator (screen shots)
+
+### Further reading 
+
+
+
+
+# Conclusion
+
+
+# Further Information
+For any questions or advice in conducting a power calculation, please contact [data-clinic@cardiff.ac.uk](mailto: data-clinic@cardiff.ac.uk), or drop in to a free Data Clinic session held every Tuesday from 3pm at the Henry Wellcome Building on the Health Campus or every Thursday from 3pm at the Haydn Ellis Building on Maindy Road. 
+
